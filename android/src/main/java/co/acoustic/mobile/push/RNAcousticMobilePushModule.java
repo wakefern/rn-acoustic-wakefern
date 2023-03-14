@@ -499,17 +499,13 @@ ification. This will allow the app frontend to set this to some asset.
     */
     @ReactMethod
     public void configureAndroidChannel(String resNotificationIcon, String id, String name, String description) {
-        Log.d(TAG, "configureAndroidChannel: " + resNotificationIcon + " " + id + " " + name + " " + description);
+        Logger.d(TAG, "configureAndroidChannel: " + resNotificationIcon + " " + id + " " + name + " " + description);
         try {
             final int resID = reactContext.getResources().getIdentifier(resNotificationIcon, "mipmap", reactContext.getPackageName());
             Log.d(TAG, "resId = " + resID);
             if (resID == 0) {
                 throw new Exception("Invalid resource id 0");
             }
-            /*SharedPreferences prefs = reactContext.getSharedPreferences("IBM_MCE_SDK_DATA", Context.MODE_PRIVATE);
-            SharedPreferences.Editor prefEditor = prefs.edit();
-            prefEditor.putInt("NOTIF_ICON", resID);
-            prefEditor.commit();*/
             setIcon(resID);
         } catch (Exception e) {
             e.printStackTrace();

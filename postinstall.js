@@ -204,6 +204,30 @@ function addAndroidConfigFile(installDirectory) {
 	}
 }
 
+/**
+ * Matt Miller: This is a modification to install the aar files in the libs directory of the root project.
+ * This is to avoid a packaging error when running `.gradlew app:assembleRelease`.
+ * https://github.com/facebook/react-native/issues/33062
+ * 
+ * @param {string} installDirectory 
+ */
+function addAndroidAarFiles(installDirectory) {
+	const aarFiles = ['acoustic-mobile-push-android-sdk-3.8.6.aar',
+		'acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar',
+		'acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar'];
+	const destinationDirectory = path.join(installDirectory, "android", "app", "libs");
+	if (!fs.existsSync(destinationDirectory)) {
+		console.log('Creating libs path');
+		fs.mkdirSync(destinationDirectory, { recursive: true });
+	}
+
+	aarFiles.forEach(aarFile => {
+		const aarDestPath = path.join(destinationDirectory, aarFile);
+		console.log('copying ' + aarFile + ' to ' + aarDestPath);
+		ncp.ncp(path.join('android', 'libs', aarFile), aarDestPath);
+	});
+}
+
 function stringExists(name, strings) {
 	for(var i=0; i<strings.resources.string.length; i++) {
 		if(strings.resources.string[i]['$'].name == name) {
@@ -267,6 +291,7 @@ replaceMain(mainAppPath);
 modifyInfoPlist(mainAppPath);
 addiOSConfigFile(mainAppPath);
 addAndroidConfigFile(installDirectory);
+addAndroidAarFiles(installDirectory);
 modifyManifest(installDirectory);
 modifyStrings(installDirectory);
 

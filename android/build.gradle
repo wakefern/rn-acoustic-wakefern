@@ -20,7 +20,10 @@ dependencies {
   compileOnly('com.facebook.react:react-native:+') {
     exclude group: 'com.android.support'
   }
-  implementation fileTree(dir: 'libs', include: ['*.aar'])
+  //implementation fileTree(dir: 'libs', include: ['*.aar'])
+  compileOnly files('libs/acoustic-mobile-push-android-sdk-3.8.6.aar')
+  compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar')
+  compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar')
   implementation 'com.google.android.gms:play-services-base:16.0.1'
   implementation 'com.google.firebase:firebase-messaging:22.0.0'
   implementation "androidx.core:core:1.8.0"
