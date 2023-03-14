@@ -211,7 +211,7 @@ function addAndroidConfigFile(installDirectory) {
  * 
  * @param {string} installDirectory 
  */
-function addAndroidAarFiles(installDirectory) {
+/*function addAndroidAarFiles(installDirectory) {
 	const aarFiles = ['acoustic-mobile-push-android-sdk-3.8.6.aar',
 		'acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar',
 		'acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar'];
@@ -226,7 +226,7 @@ function addAndroidAarFiles(installDirectory) {
 		console.log('copying ' + aarFile + ' to ' + aarDestPath);
 		ncp.ncp(path.join('android', 'libs', aarFile), aarDestPath);
 	});
-}
+}*/
 
 function stringExists(name, strings) {
 	for(var i=0; i<strings.resources.string.length; i++) {
@@ -291,7 +291,7 @@ replaceMain(mainAppPath);
 modifyInfoPlist(mainAppPath);
 addiOSConfigFile(mainAppPath);
 addAndroidConfigFile(installDirectory);
-addAndroidAarFiles(installDirectory);
+//addAndroidAarFiles(installDirectory);
 modifyManifest(installDirectory);
 modifyStrings(installDirectory);
 
