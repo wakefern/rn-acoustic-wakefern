@@ -498,18 +498,32 @@ ification. This will allow the app frontend to set this to some asset.
     Allow this method to configure these variables as well.
     */
     @ReactMethod
-    public void configureAndroidChannel(String resNotificationIcon, String id, String name, String description) {
-        Logger.d(TAG, "configureAndroidChannel: " + resNotificationIcon + " " + id + " " + name + " " + description);
+    public void configureAndroidChannel(String smallIconResId, String largeIconResId, String id, String name, String description) {
+        Logger.d(TAG, "configureAndroidChannel: " 
+            + smallIconResId + " " + largeIconResId + " "
+            + id + " " + name + " " + description);
         try {
-            final int resID = reactContext.getResources().getIdentifier(resNotificationIcon, "mipmap", reactContext.getPackageName());
-            Log.d(TAG, "resId = " + resID);
-            if (resID == 0) {
+            final int smallIcon = reactContext.getResources().getIdentifier(smallIconResId, "mipmap", reactContext.getPackageName());
+            Log.d(TAG, "small icon resId = " + smallIcon);
+            if (smallIcon == 0) {
                 throw new Exception("Invalid resource id 0");
             }
-            setIcon(resID);
+            setIcon(smallIcon);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e(TAG, "Error setting notification icon: " + e.toString());
+            Log.e(TAG, "Error setting small notification icon: " + e.toString());
+        }
+
+        try {
+            final int largeIcon = reactContext.getResources().getIdentifier(largeIconResId, "mipmap", reactContext.getPackageName());
+            Log.d(TAG, "large icon resId = " + largeIcon);
+            if (largeIcon == 0) {
+                throw new Exception("Invalid resource id 0");
+            }
+            MceSdk.getNotificationsClient().getNotificationsPreference().setLargeIcon(reactContext, largeIcon);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e(TAG, "Error setting large notification icon: " + e.toString());
         }
 
         channelIdentifier = id;
