@@ -21,7 +21,7 @@ dependencies {
     exclude group: 'com.android.support'
   }
   //implementation fileTree(dir: 'libs', include: ['*.aar'])
-  compileOnly files('libs/acoustic-mobile-push-android-sdk-3.8.6.aar')
+  compileOnly files('libs/acoustic-mobile-push-android-sdk-fixed-3.8.6.aar')
   compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar')
   compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar')
   implementation 'com.google.android.gms:play-services-base:16.0.1'
