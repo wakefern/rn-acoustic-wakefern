@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Acoustic, L.P. All rights reserved.
+ * Copyright © 2019, 2024 Acoustic, L.P. All rights reserved.
  *
  * NOTICE: This file contains material that is confidential and proprietary to
  * Acoustic, L.P. and/or other developers. No license is granted under any intellectual or
@@ -14,6 +14,7 @@ const path = require('path');
 const ncp = require('ncp');
 const xml2js = require('xml2js');
 const chalk = require('chalk');
+const { execSync } = require('child_process');
 
 function findInstallDirectory() {
     if(process.env.MCE_RN_DIRECTORY) {
@@ -71,12 +72,26 @@ function modifyManifest(installDirectory) {
 	let manifestPath = path.join(installDirectory, "android", "app", "src", "main", "AndroidManifest.xml");
 	new xml2js.Parser().parseString(fs.readFileSync(manifestPath), function (err, document) {
 
+		console.log("Adding required xmlns:tools schemas, tools:replace attributes to AndroidManifest.xml");
+
+		// Add xmlns:tools attribute to manifest if not exists
+		if (!document.manifest.$['xmlns:tools']) {
+			document.manifest.$['xmlns:tools'] = "http://schemas.android.com/tools";
+		}
+
+		// Add tools:replace="android:name" to application if not exists
+		if (!document.manifest.application[0].$['tools:replace']) {
+			document.manifest.application[0].$['tools:replace'] = "android:name";
+		}
+
 		console.log("Adding required receivers to AndroidManifest.xml");
 		var receivers = document.manifest.application[0].receiver;
 		[
-			'<receiver android:name="co.acoustic.mobile.push.sdk.wi.AlarmReceiver" ><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter><intent-filter><action android:name="android.intent.action.TIMEZONE_CHANGED" /></intent-filter><intent-filter><action android:name="android.intent.action.PACKAGE_REPLACED" /><data android:scheme="package" /></intent-filter><intent-filter><action android:name="android.intent.action.LOCALE_CHANGED" /></intent-filter></receiver>',
-			'<receiver android:name="co.acoustic.mobile.push.RNAcousticMobilePushBroadcastReceiver"><intent-filter><action android:name="co.acoustic.mobile.push.sdk.NOTIFIER" /></intent-filter></receiver>',
-			'<receiver android:name="co.acoustic.mobile.push.sdk.notification.NotifActionReceiver" />'
+			'<receiver android:name="co.acoustic.mobile.push.sdk.wi.AlarmReceiver" tools:replace="android:exported" android:exported="true"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter><intent-filter><action android:name="android.intent.action.TIMEZONE_CHANGED" /></intent-filter><intent-filter><action android:name="android.intent.action.PACKAGE_REPLACED" /><data android:scheme="package" /></intent-filter><intent-filter><action android:name="android.intent.action.LOCALE_CHANGED" /></intent-filter></receiver>',
+			'<receiver android:name="co.acoustic.mobile.push.RNAcousticMobilePushBroadcastReceiver" android:exported="true"><intent-filter><action android:name="co.acoustic.mobile.push.sdk.NOTIFIER" /></intent-filter></receiver>',
+			'<receiver android:name="co.acoustic.mobile.push.sdk.notification.NotifActionReceiver" />',
+			'<receiver android:name="co.acoustic.mobile.push.sdk.location.LocationBroadcastReceiver"/>'
+
 		].forEach((receiver) => {
 			receivers = verifyStanza(receivers, receiver);
 		});
@@ -184,49 +199,10 @@ function replaceMain(mainAppPath) {
 		fs.renameSync(mainPath, backupMainPath);
 
 		console.log("Replacing main.m with SDK provided code");
-		fs.copyFileSync( path.join("postinstall", "ios", "main.m"), mainPath);
+		fs.copyFileSync(path.join("postinstall", "ios", "main.m"), mainPath);
 	}
 }
 
-function addAndroidConfigFile(installDirectory) {
-	const configName = 'MceConfig.json';
-	const destinationDirectory = path.join(installDirectory, "android", "app", "src", "main", "assets");
-	const configPath = path.join(destinationDirectory, configName);
-
-	if(!fs.existsSync(destinationDirectory)) {
-		console.log('Creating asset path');
-		fs.mkdirSync(destinationDirectory, { recursive: true });
-	}
-
-	if(!fs.existsSync(configPath)) {
-		console.log('Copying MceConfig.json file into Android project');
-		ncp.ncp( path.join('postinstall', 'android', configName), configPath);
-	}
-}
-
-/**
- * Matt Miller: This is a modification to install the aar files in the libs directory of the root project.
- * This is to avoid a packaging error when running `.gradlew app:assembleRelease`.
- * https://github.com/facebook/react-native/issues/33062
- * 
- * @param {string} installDirectory 
- */
-/*function addAndroidAarFiles(installDirectory) {
-	const aarFiles = ['acoustic-mobile-push-android-sdk-3.8.6.aar',
-		'acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar',
-		'acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar'];
-	const destinationDirectory = path.join(installDirectory, "android", "app", "libs");
-	if (!fs.existsSync(destinationDirectory)) {
-		console.log('Creating libs path');
-		fs.mkdirSync(destinationDirectory, { recursive: true });
-	}
-
-	aarFiles.forEach(aarFile => {
-		const aarDestPath = path.join(destinationDirectory, aarFile);
-		console.log('copying ' + aarFile + ' to ' + aarDestPath);
-		ncp.ncp(path.join('android', 'libs', aarFile), aarDestPath);
-	});
-}*/
 
 function stringExists(name, strings) {
 	for(var i=0; i<strings.resources.string.length; i++) {
@@ -268,52 +244,257 @@ function modifyStrings(installDirectory) {
 	});
 }
 
-function addiOSConfigFile(mainAppPath) {
-	const configName = 'MceConfig.json';
-	const configPath = path.join(mainAppPath, configName);
-	if(!fs.existsSync(configPath)) {
-		console.log("Copying MceConfig.json file into iOS project - " + configPath);
-		ncp.ncp( path.join('postinstall', 'ios', configName), configPath);
-	} else {
-		console.log("MceConfig.json already exists at " + configPath);
-	}
-}
-
 if(process.env.MCE_RN_NOCONFIG) {
     console.log(chalk.yellow.bold("Acoustic Mobile Push SDK installed, but will not be auto configured because MCE_RN_NOCONFIG environment flag detected."));
     return;
 }
 
-console.log(chalk.green.bold("Setting up Acoustic Mobile Push SDK"));
+/**
+ * Copies the CampaignConfig.json file from the plugin directory to the project directory
+ * if it does not exist. It then reads this configuration file to apply specific configurations
+ * for iOS and Android.
+ */
+function addOrReplaceMobilePushConfigFile(installDirectory) {
+	const configName = 'CampaignConfig.json';
+	const pluginPath = path.resolve(__dirname, '');
+	const configPath = path.join(pluginPath, configName);
+	const appConfigPath = path.join(installDirectory, configName);
+	console.log("Add or Replace CampaignConfig.json file into the App - " + configPath);
+
+	if(!fs.existsSync(appConfigPath)) {
+		console.log("Copying CampaignConfig.json file into project - " + appConfigPath);
+		fs.copyFileSync(configPath, appConfigPath);
+	} else {
+		console.log("CampaignConfig.json already exists at " + appConfigPath);
+	}
+
+	// Read and save cooresponding ios/android MceConfig.json sections from CampaignConfig.json
+	readAndSaveMceConfig(installDirectory, pluginPath, appConfigPath);
+}
+
+/**
+ * Reads the provided mobile push configuration file, extracts platform-specific configurations,
+ * and saves these configurations to respective directories. Optionally updates Android's build.gradle.
+ * 
+ * @param {string} installDirectory - The path to the Sample app's directory.
+ * @param {string} pluginPath - The path to the plugin directory.
+ * @param {string} campaignConfigFilePath - The path to the CampaignConfig.json file.
+ */
+function readAndSaveMceConfig(installDirectory, pluginPath, campaignConfigFilePath) {
+	try {
+	  // Read the file synchronously
+	  const fileData = fs.readFileSync(campaignConfigFilePath, 'utf8');
+  
+	  const jsonData = JSON.parse(fileData);
+  
+	  if (jsonData.android && jsonData.iOS) {
+		if (jsonData.android) {
+		  const androidConfig = JSON.stringify(jsonData.android, null, 2);
+		  const androidDestinationPath = path.join(pluginPath, 'postinstall/android/MceConfig.json');
+  
+		  saveConfig(androidConfig, androidDestinationPath);
+		  
+		  updateAndroidBuildGradle(jsonData.useRelease);
+
+		  const gradlePropertiesPath = path.join(campaignConfigFilePath, '../android/gradle.properties');
+		  updateCampaignSDKVersionInProperties(gradlePropertiesPath, jsonData.androidVersion);
+
+		  const destinationDirectory = path.join(installDirectory, "android", "app", "src", "main", "assets");
+		  const androidAppPath = path.join(destinationDirectory, "MceConfig.json");
+		  saveConfig(androidConfig, androidAppPath);
+		}
+  
+		if (jsonData.iOS) {
+		  const iosConfig = JSON.stringify(jsonData.iOS, null, 2);
+		  const iosDestinationPath = path.join(pluginPath, 'postinstall/ios/MceConfig.json');
+  
+		  saveConfig(iosConfig, iosDestinationPath);
+
+		  const iosAppPath = path.join(mainAppPath, "MceConfig.json");
+		  saveConfig(iosConfig, iosAppPath);
+		}
+	  } else {
+		console.error('No "android/ios" object found in the JSON file.');
+	  }
+
+	  managePlugins(jsonData);
+	} catch (error) {
+	  if (error.code === 'ENOENT') { // Handle "file not found" error specifically
+		console.error(`File not found: ${campaignConfigFilePath}`);
+	  } else {
+		console.error('Error reading or parsing JSON file:', error);
+	  }
+	}
+  }
+  
+/**
+ * Saves the specified configuration data to a given destination path.
+ * 
+ * @param {string} configData - The configuration data to be saved.
+ * @param {string} destinationPath - The file path where the configuration data should be saved.
+ */
+function saveConfig(configData, destinationPath) {
+	try {
+		fs.writeFileSync(destinationPath, configData, { flag: 'w' });
+		console.log(`${destinationPath} saved successfully!`);
+	} catch (error) {
+		console.error(`Error saving ${destinationPath}:`, error);
+	}
+}
+
+/**
+ * Checks if the specified plugin is installed by looking into the project's package.json.
+ * 
+ * @param {string} pluginName - The name of the plugin to check.
+ * @returns {boolean} True if the plugin is installed, false otherwise.
+ */
+function isPluginInstalled(pluginName) {
+	const packageJsonPath = 'package.json';
+
+	const packageJsonData = fs.readFileSync(packageJsonPath, 'utf8');
+	const packageJson = JSON.parse(packageJsonData);
+	return packageJson.dependencies && packageJson.dependencies[pluginName] ||
+		packageJson.devDependencies && packageJson.devDependencies[pluginName];
+}
+
+/**
+ * Manages the installation or removal of plugins based on the specified configuration object.
+ * The choice of package manager (npm or yarn) is determined by the presence of their respective lock files.
+ * 
+ * @param {Object} config - An object containing the configuration for plugins.
+ */
+function managePlugins(config) {
+	// Determine the package manager by checking for lock files
+	const hasYarnLock = fs.existsSync(path.join(process.cwd(), 'yarn.lock'));
+	const hasNpmLock = fs.existsSync(path.join(process.cwd(), 'package-lock.json'));
+	const packageManager = hasYarnLock ? 'yarn' : (hasNpmLock ? 'npm' : null);
+
+	if (!packageManager) {
+		console.error('No lock file found. Please ensure you are in the correct directory and try again.');
+		return;
+	}
+
+	Object.entries(config.plugins).forEach(([plugin, isEnabled]) => {
+		if (plugin.includes("plugins")) return;
+
+		const installed = isPluginInstalled(plugin);
+
+		try {
+			if (isEnabled && !installed) {
+				console.log(`Adding ${plugin}...`);
+				if (packageManager === 'yarn') {
+					execSync(`yarn add ${plugin}`, { stdio: 'inherit', cwd: process.cwd() });
+				} else {
+					execSync(`npm install ${plugin}`, { stdio: 'inherit', cwd: process.cwd() });
+				}
+			} else if (!isEnabled && installed) {
+				console.log(`Removing ${plugin}...`);
+				if (packageManager === 'yarn') {
+					execSync(`yarn remove ${plugin}`, { stdio: 'inherit', cwd: process.cwd() });
+				} else {
+					execSync(`npm uninstall ${plugin}`, { stdio: 'inherit', cwd: process.cwd() });
+				}
+			}
+		} catch (error) {
+			console.error(`Failed to manage plugin ${plugin}:`, error);
+		}
+	});
+}
+
+/**
+ * Updates build.gradle file for Android project to remove Maven URL if useRelease is true and it exists.
+ * Adds Maven URL if useRelease is true and it doesn't already exist.
+ * Logs a message indicating whether changes were made or not.
+ *
+ * 
+ * @param {Object} useRelease - True/False for release version of SDK.
+ */
+function updateAndroidBuildGradle(useRelease) {
+	const buildGradlePath = path.join(process.cwd(), "android", "build.gradle");
+
+	try {
+		let buildGradleContent = fs.readFileSync(buildGradlePath, 'utf8');
+		const mavenUrlRegex = /maven\s*{\s*url\s*"https:\/\/s01\.oss\.sonatype\.org\/content\/groups\/staging"\s*}/;
+
+		if (useRelease && mavenUrlRegex.test(buildGradleContent)) {
+			// Remove Maven URL if useRelease is true and it exists
+			buildGradleContent = buildGradleContent.replace(mavenUrlRegex, '');
+			fs.writeFileSync(buildGradlePath, buildGradleContent, 'utf8');
+			console.log('Maven URL removed from build.gradle');
+		} else if (!useRelease && !mavenUrlRegex.test(buildGradleContent)) {
+			// Add Maven URL if useRelease is true and it doesn't already exist
+			const repositoriesIndex = buildGradleContent.lastIndexOf('repositories {');
+			const closingBracketIndex = buildGradleContent.indexOf('}', repositoriesIndex);
+			const mavenUrlString = '    maven { url "https://s01.oss.sonatype.org/content/groups/staging" }\n';
+			buildGradleContent = buildGradleContent.slice(0, closingBracketIndex) + mavenUrlString + buildGradleContent.slice(closingBracketIndex);
+			fs.writeFileSync(buildGradlePath, buildGradleContent, 'utf8');
+			console.log('Maven URL added to build.gradle');
+		} else {
+			console.log('No changes needed in build.gradle');
+		}
+	} catch (error) {
+		console.error('Error updating build.gradle:', error);
+	}
+}
+
+/**
+ * Updates or inserts the 'campaignSDKVersion' property in the gradle.properties file.
+ * @param {string} propertiesFilePath - The path to the gradle.properties file.
+ * @param {string} version - The version value to set for 'campaignSDKVersion'.
+ */
+function updateCampaignSDKVersionInProperties(propertiesFilePath, version) {
+	fs.readFile(propertiesFilePath, { encoding: 'utf-8' }, (err, data) => {
+	  if (err) {
+		console.error('Error reading gradle.properties:', err);
+		return;
+	  }
+  
+	  const propName = 'campaignSDKVersion';
+	  const versionPattern = /^\d+\.\d+\.\d+$/; // Pattern to match x.x.x version format
+	  const propRegex = new RegExp(`(^${propName}=).*`, 'm');
+	  let updatedData;
+  	  // Determine the value to set for campaignSDKVersion
+  	  let versionValue = (version === '+' || version.match(versionPattern)) ? version : '+';
+
+	  // Check if 'campaignSDKVersion' exists and update or insert it
+	  if (data.match(propRegex)) {
+		// Replace the existing value
+		console.log('Version value invalid, default to use latest build.');
+		updatedData = data.replace(propRegex, `$1${versionValue}`);
+	  } else {
+		// Insert the new property
+		updatedData = data.trim() + `\n${propName}=${versionValue}\n`;
+	  }
+  
+	  // Write the updated content back to the gradle.properties file
+	  fs.writeFile(propertiesFilePath, updatedData, (err) => {
+		if (err) {
+		  console.error('Error writing gradle.properties:', err);
+		  return;
+		}
+		console.log('gradle.properties has been updated successfully.');
+	  });
+	});
+  }
+
+
+console.log(chalk.green.bold("Setting up Acoustic Campaign SDK"));
 const installDirectory = findInstallDirectory();
 const mainAppPath = findMainPath(installDirectory);
+addOrReplaceMobilePushConfigFile(installDirectory);
 replaceMain(mainAppPath);
 modifyInfoPlist(mainAppPath);
-addiOSConfigFile(mainAppPath);
-addAndroidConfigFile(installDirectory);
-//addAndroidAarFiles(installDirectory);
 modifyManifest(installDirectory);
 modifyStrings(installDirectory);
 
 console.log(chalk.green("Installation Complete!"));
 
 console.log(chalk.blue.bold("\nPost Installation Steps\n"));
-console.log(chalk.blue('For react-native 0.59 and lower link the plugin with:'));
-console.log('react-native link react-native-acoustic-mobile-push\n');
 
 console.log(chalk.blue('iOS Support:'));
 console.log("1. Open the iOS project in Xcode.");
 console.log("2. In the `Capabilities` tab of the main app target, enable push notifications by turning the switch to the on position");
-console.log("3. Drag and drop `react-native-acoustic-mobile-push/AcousticMobilePush.framework` from the Finder into the target's `General` tab, under `Linked Frameworks and Libraries`. Verify that 'embed and sign' is selected.");
-console.log("4. Drag and drop `react-native-acoustic-mobile-push` folder from the Finder into the `Framework Search Paths` setting in the `Build Setting` tab of the new target.");
-console.log("5. Then add a new `Notification Service Extension` target");
-console.log("6. Drag and drop `react-native-acoustic-mobile-push/Notification Service/AcousticMobilePushNotification.framework` from the Finder into the new target's `General` tab, under `Linked Frameworks and Libraries`.");
-console.log("7. Drag and drop `react-native-acoustic-mobile-push/Notification Service` folder from the Finder into the `Framework Search Paths` setting in the `Build Setting` tab of the new target.");
-console.log("8. Replace the contents of `NotificationService.m` and `NotificationService.h` with the ones provided in the `react-native-acoustic-mobile-push Notification Service` folder");
-console.log("9. Add the `MceConfig.json` file in the project directory to the xcode project to **Application** AND **Notification Service** targets");
-console.log("10. Adjust the `baseUrl` and `appKey`s provided by your account team");
-
-console.log(chalk.blue('Android Support:'));
-console.log("1. Open the Android project in Android Studio.");
-console.log("2. Replace the `google_api_key` and `google_app_id` placeholder values in `android/app/src/main/res/values/strings.xml` with your Google provided FCM credentials");
-console.log("3. Then edit the MceConfig.json file in the project and fill in the appKeys and baseUrl provided by your account team.\n");
+console.log("3. Then add a new `Notification Service Extension` target");
+console.log("4. Replace the contents of `NotificationService.m` and `NotificationService.h` with the ones provided in the `react-native-acoustic-mobile-push Notification Service` folder");
+console.log("5. Add the `MceConfig.json` file in the project directory to the xcode project to **Application** AND **Notification Service** targets");
+console.log("6. Adjust the `baseUrl` and `appKey`s provided by your account team");

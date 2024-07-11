@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
 if (project.hasProperty('POM_ARTIFACT_ID')) {
   apply from: 'gradle-maven-push.gradle'
+    maven { url "https://s01.oss.sonatype.org/content/groups/staging" }
 }
 
 def safeExtGet(prop, fallback) {
@@ -8,11 +9,11 @@ def safeExtGet(prop, fallback) {
 }
 
 android {
-  compileSdkVersion safeExtGet('compileSdkVersion', 28)
+  compileSdkVersion safeExtGet('compileSdkVersion', 31)
 
   defaultConfig {
-    minSdkVersion safeExtGet('minSdkVersion', 16)
-    targetSdkVersion safeExtGet('targetSdkVersion', 27)
+    minSdkVersion safeExtGet('minSdkVersion', 21)
+    targetSdkVersion safeExtGet('targetSdkVersion', 31)
   }
 }
 
@@ -20,15 +21,12 @@ dependencies {
   compileOnly('com.facebook.react:react-native:+') {
     exclude group: 'com.android.support'
   }
-  //implementation fileTree(dir: 'libs', include: ['*.aar'])
-  compileOnly files('libs/acoustic-mobile-push-android-sdk-3.8.6.aar')
-  compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inapp-3.8.6.aar')
-  compileOnly files('libs/acoustic-mobile-push-android-sdk-plugin-inbox-3.8.6.aar')
+  implementation fileTree(dir: 'libs', include: ['*.aar'])
   implementation 'com.google.android.gms:play-services-base:16.0.1'
   implementation 'com.google.firebase:firebase-messaging:22.0.0'
   implementation "androidx.core:core:1.8.0"
-}
 
-repositories {
-  google()
+  api "io.github.go-acoustic:acoustic-mobile-push-android-sdk:$campaignSDKVersion"
+  api "io.github.go-acoustic:acoustic-mobile-push-android-inapp:$campaignSDKVersion"
+  api "io.github.go-acoustic:acoustic-mobile-push-android-inbox:$campaignSDKVersion"
 }

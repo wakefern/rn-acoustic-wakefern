@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Acoustic, L.P. All rights reserved.
+ * Copyright © 2019, 2023 Acoustic, L.P. All rights reserved.
  *
  * NOTICE: This file contains material that is confidential and proprietary to
  * Acoustic, L.P. and/or other developers. No license is granted under any intellectual or
@@ -41,9 +41,7 @@ RCT_EXPORT_MODULE();
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         NSDictionary * channelAttributes = @{@"sdk": @"react-native", @"react-native": [[MCESdk sharedInstance] sdkVersion] };
-#if USE_ACOUSTIC        
         [MCEAttributesQueueManager.sharedInstance updateChannelAttributes: channelAttributes];
-#endif
 #pragma GCC diagnostic pop
     }
     return self;
@@ -116,7 +114,7 @@ RCT_EXPORT_MODULE();
 
 - (NSDictionary *)constantsToExport {
     MCEConfig * config = MCESdk.sharedInstance.config;
-    return @{@"pluginVersion": @"3.8.6", @"sdkVersion": MCESdk.sharedInstance.sdkVersion, @"appKey": config.appKey ? config.appKey : [NSNull null]};
+    return @{@"pluginVersion": @"3.9.7", @"sdkVersion": MCESdk.sharedInstance.sdkVersion, @"appKey": config.appKey ? config.appKey : [NSNull null]};
 }
 
 #pragma mark SDK - Events

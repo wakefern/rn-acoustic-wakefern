@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Acoustic, L.P. All rights reserved.
+ * Copyright © 2019, 2023 Acoustic, L.P. All rights reserved.
  *
  * NOTICE: This file contains material that is confidential and proprietary to
  * Acoustic, L.P. and/or other developers. No license is granted under any intellectual or
@@ -470,7 +470,7 @@ public class RNAcousticMobilePushModule extends ReactContextBaseJavaModule imple
 
 		final Map<String, Object> constants = new HashMap<>();
 		constants.put("sdkVersion", MceSdk.getSdkVerNumber());
-        constants.put("pluginVersion", "3.8.6");
+        constants.put("pluginVersion", "3.9.7");
 		constants.put("appKey", appKey );
 		return constants;
 	}
@@ -489,50 +489,6 @@ public class RNAcousticMobilePushModule extends ReactContextBaseJavaModule imple
             notificationManager.createNotificationChannel(channel);
         }
     }
-
-    /**
-    From: Matt Miller <matthew.miller@wakefern.com>
-    This was a method I added. With this version of the plugin, there is no way to override the notification icon used when receiving a push not
-ification. This will allow the app frontend to set this to some asset.
-    Additionally, there is no way exposed to the frontend to allow the app to create a custom notification channel other than the defaults. 
-    Allow this method to configure these variables as well.
-    */
-    @ReactMethod
-    public void configureAndroidChannel(String smallIconResId, String largeIconResId, String id, String name, String description) {
-        Logger.d(TAG, "configureAndroidChannel: " 
-            + smallIconResId + " " + largeIconResId + " "
-            + id + " " + name + " " + description);
-        try {
-            final int smallIcon = reactContext.getResources().getIdentifier(smallIconResId, "mipmap", reactContext.getPackageName());
-            Log.d(TAG, "small icon resId = " + smallIcon);
-            if (smallIcon == 0) {
-                throw new Exception("Invalid resource id 0");
-            }
-            setIcon(smallIcon);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error setting small notification icon: " + e.toString());
-        }
-
-        try {
-            final int largeIcon = reactContext.getResources().getIdentifier(largeIconResId, "mipmap", reactContext.getPackageName());
-            Log.d(TAG, "large icon resId = " + largeIcon);
-            if (largeIcon == 0) {
-                throw new Exception("Invalid resource id 0");
-            }
-            MceSdk.getNotificationsClient().getNotificationsPreference().setLargeIcon(reactContext, largeIcon);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.e(TAG, "Error setting large notification icon: " + e.toString());
-        }
-
-        channelIdentifier = id;
-        channelName = name;
-        channelDescription = description;
-
-        requestPushPermission();
-    }
-
 
     @ReactMethod
     public void requestPushPermission() {
