@@ -181,7 +181,7 @@ function findMainPath(installDirectory) {
 	return directory;
 }
 
-function replaceMain(mainAppPath) {
+/*function replaceMain(mainAppPath) {
 	if(!fs.existsSync(mainAppPath) || !fs.lstatSync(mainAppPath).isDirectory()) {
 		console.error(chalk.red("Incorrect main app path: " + mainAppPath));
 		return;
@@ -201,7 +201,7 @@ function replaceMain(mainAppPath) {
 		console.log("Replacing main.m with SDK provided code");
 		fs.copyFileSync(path.join("postinstall", "ios", "main.m"), mainPath);
 	}
-}
+}*/
 
 
 function stringExists(name, strings) {
@@ -482,7 +482,7 @@ console.log(chalk.green.bold("Setting up Acoustic Campaign SDK"));
 const installDirectory = findInstallDirectory();
 const mainAppPath = findMainPath(installDirectory);
 addOrReplaceMobilePushConfigFile(installDirectory);
-replaceMain(mainAppPath);
+//replaceMain(mainAppPath);
 modifyInfoPlist(mainAppPath);
 modifyManifest(installDirectory);
 modifyStrings(installDirectory);
