@@ -5,7 +5,6 @@
     "prod": "INSERT APP KEY HERE"
   },
   "Set this to the google project number if you are using GCM or to an empty string if you are using FCM": "",
-  "senderId": "",
   "Use 'gcm' for GCM or 'fcm' for FCM": "",
   "messagingService": "fcm",
   "Will invalidate the existing user/channel ID if they exist when set to true": "This is for testing only. Do not ship with this set to true unless you understand what you are doing",
